@@ -10,9 +10,10 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.758.0",
     "@types/express": "^5.0.0",
-    "express": "^4.21.2",
     "db": "*",
+    "express": "^4.21.2",
     "types": "*"
   }
 }

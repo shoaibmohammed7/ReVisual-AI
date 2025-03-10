@@ -1,7 +1,8 @@
 import express from "express";
 import dotenv from "dotenv"
 import prisma from "db";
-import { TrainModel, GenerateImage, GenerateImageFromPrompt} from "types"
+import { TrainModel, GenerateImage, GenerateImagesFromPack} from "types"
+import { S3Client, ListBucketsCommand } from "@aws-sdk/client-s3";
 
 dotenv.config()
 
@@ -12,6 +13,16 @@ const app = express();
 const PORT = process.env.PORT || 3000
 
 app.use(express.json())
+
+// app.get("/pre-sign", async(req,res)=>{
+//     const key = `model/${Date.now()}_${Math.random()}.zip`
+//     const url = S3Client.presignUrl({
+//         url: key,
+//         method: "PUT",
+//         expiresIn: 3600
+//     })
+
+
 
 app.post("/image/training", async(req, res)=> {
 
@@ -27,12 +38,13 @@ app.post("/image/training", async(req, res)=> {
     const train = await prisma.model.create({
         data: {
             name: parseBody.data.name,
-            types: parseBody.data.types,
+            type: parseBody.data.type,
             age: parseBody.data.age,
-            ethenicity: parseBody.data.ethenicity,
+            ethinicity: parseBody.data.ethinicity,
+            eyeColor: parseBody.data.eyeColor,
             bald: parseBody.data.bald,
-            eyecolor: parseBody.data.eyecolor,
-            userId: USER_ID
+            userId: USER_ID,
+            zipUrl: parseBody.data.zipUrl
         }
     })
 
@@ -41,7 +53,6 @@ app.post("/image/training", async(req, res)=> {
     })
 
 })
-
 
 app.post("/image/generate", async(req,res)=>{
 
@@ -53,12 +64,12 @@ app.post("/image/generate", async(req,res)=>{
        return
    }
 
-   const data = await prisma.outputImage.create({
+   const data = await prisma.outputImages.create({
        data: {
             prompt: parseBody.data.prompt,
             modelId: parseBody.data.modelId,
             userId: USER_ID,
-            imageurl: ""
+            imageUrl: ""
 
        }
    })
@@ -71,7 +82,7 @@ app.post("/image/generate", async(req,res)=>{
 
 app.post("/image/pack", async(req,res)=>{
 
-    const bodyParse = GenerateImageFromPrompt.safeParse(req.body)
+    const bodyParse = GenerateImagesFromPack.safeParse(req.body)
 
     if (!bodyParse.success){
         res.status(411).json({
@@ -80,17 +91,17 @@ app.post("/image/pack", async(req,res)=>{
         return
     }
 
-    const prompts = await prisma.packprompt.findMany({
+    const prompts = await prisma.packPrompts.findMany({
         where:{
             packId: bodyParse.data.packId
         }
     })
 
-    const images = await prisma.outputImage.createManyAndReturn({
+    const images = await prisma.outputImages.createManyAndReturn({
         data:prompts.map((prompt)=>({
             prompt: prompt.prompt,
             userId: USER_ID,
-            modelId : bodyParse.data.modeId,
+            modelId : bodyParse.data.modelId,
             imageurl : ""
         }))
     })
@@ -116,7 +127,7 @@ app.get("/images/bluk", async(req,res)=>{
     const img = req.query.img as string[]
     const offset = req.query.offset as string || "0"
     const limit = req.query.limit as string || "10"
-    const pics = await prisma.outputImage.findMany({
+    const pics = await prisma.outputImages.findMany({
         where:{
             userId:USER_ID,
             id: { in:img }
@@ -130,6 +141,10 @@ app.get("/images/bluk", async(req,res)=>{
     })
 
 })
+
+
+
+
 
 
 app.listen(PORT, ()=>{
